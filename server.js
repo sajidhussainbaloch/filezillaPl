@@ -20,7 +20,12 @@ const connections = {};
 const SITES_FILE = path.join(__dirname, 'sites.json');
 const transferQueue = {};
 
-const upload = multer({ dest: path.join(__dirname, 'temp_uploads') });
+const uploadDir = isVercel
+  ? path.join(os.tmpdir(), 'filezillapl-uploads')
+  : path.join(__dirname, 'temp_uploads');
+
+fs.mkdirSync(uploadDir, { recursive: true });
+const upload = multer({ dest: uploadDir });
 
 function loadSites() {
   try {
