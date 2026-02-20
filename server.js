@@ -10,6 +10,7 @@ const os = require('os');
 
 const app = express();
 const PORT = 3000;
+const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -591,18 +592,21 @@ async function downloadDirRecursive(conn, remoteDir, localDir) {
 
 // ==================== WEBSOCKET ====================
 
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`FileZilla Pro running at http://localhost:${PORT}`);
-  console.log(`Access from other devices at http://${require('os').networkInterfaces()['Ethernet']?.[0]?.address || require('os').networkInterfaces()['Wi-Fi']?.[0]?.address || 'your-ip'}:${PORT}`);
-});
-
-const wss = new WebSocket.Server({ server });
 const wsClients = new Set();
+let server;
 
-wss.on('connection', (ws) => {
-  wsClients.add(ws);
-  ws.on('close', () => wsClients.delete(ws));
-});
+if (!isVercel) {
+  server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`FileZilla Pro running at http://localhost:${PORT}`);
+    console.log(`Access from other devices at http://${require('os').networkInterfaces()['Ethernet']?.[0]?.address || require('os').networkInterfaces()['Wi-Fi']?.[0]?.address || 'your-ip'}:${PORT}`);
+  });
+
+  const wss = new WebSocket.Server({ server });
+  wss.on('connection', (ws) => {
+    wsClients.add(ws);
+    ws.on('close', () => wsClients.delete(ws));
+  });
+}
 
 function broadcastTransferUpdate(transferId) {
   const data = JSON.stringify({ type: 'transfer-update', transfer: transferQueue[transferId] });
@@ -611,12 +615,16 @@ function broadcastTransferUpdate(transferId) {
   }
 }
 
-process.on('SIGINT', async () => {
-  for (const connId of Object.keys(connections)) {
-    try {
-      if (connections[connId].type === 'sftp') await connections[connId].client.end();
-      else connections[connId].client.close();
-    } catch (e) {}
-  }
-  process.exit();
-});
+if (!isVercel) {
+  process.on('SIGINT', async () => {
+    for (const connId of Object.keys(connections)) {
+      try {
+        if (connections[connId].type === 'sftp') await connections[connId].client.end();
+        else connections[connId].client.close();
+      } catch (e) {}
+    }
+    process.exit();
+  });
+}
+
+module.exports = app;
