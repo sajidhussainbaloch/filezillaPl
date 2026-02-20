@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FileZilla Pro - FTP/SFTP Client</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <!-- Top Menu Bar -->
+  <div class="menu-bar">
+    <div class="menu-left">
+      <div class="app-logo">
+        <i class="fas fa-exchange-alt"></i>
+        <span>FileZilla Pro</span>
+      </div>
+      <div class="menu-items">
+        <div class="menu-item" onclick="showSiteManager()">
+          <i class="fas fa-server"></i> Site Manager
+        </div>
+        <div class="menu-item" onclick="refreshAll()">
+          <i class="fas fa-sync-alt"></i> Refresh
+        </div>
+        <div class="menu-item" onclick="toggleTransferQueue()">
+          <i class="fas fa-tasks"></i> Transfer Queue
+        </div>
+        <div class="menu-item" onclick="showSettings()">
+          <i class="fas fa-cog"></i> Settings
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Connect Bar -->
+  <div class="quickconnect-bar">
+    <div class="qc-field">
+      <label>Host:</label>
+      <input type="text" id="qc-host" placeholder="hostname or IP">
+    </div>
+    <div class="qc-field">
+      <label>Username:</label>
+      <input type="text" id="qc-username" placeholder="username">
+    </div>
+    <div class="qc-field">
+      <label>Password:</label>
+      <input type="password" id="qc-password" placeholder="password">
+    </div>
+    <div class="qc-field">
+      <label>Port:</label>
+      <input type="number" id="qc-port" placeholder="21">
+    </div>
+    <div class="qc-field">
+      <label>Protocol:</label>
+      <select id="qc-protocol">
+        <option value="ftp">FTP</option>
+        <option value="ftps">FTPS</option>
+        <option value="sftp">SFTP</option>
+      </select>
+    </div>
+    <button class="btn-connect" id="btn-quickconnect" onclick="quickConnect()">
+      <i class="fas fa-bolt"></i> Quickconnect
+    </button>
+    <button class="btn-disconnect" id="btn-disconnect" onclick="disconnect()" style="display:none;">
+      <i class="fas fa-times"></i> Disconnect
+    </button>
+  </div>
+
+  <!-- Message Log -->
+  <div class="message-log" id="message-log">
+    <div class="log-entry info">Welcome to FileZilla Pro - Ready to connect</div>
+  </div>
+
+  <!-- Main Content - Dual Pane -->
+  <div class="main-content">
+    <!-- Local Panel -->
+    <div class="panel local-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <i class="fas fa-laptop"></i> Local Site
+        </div>
+        <div class="panel-path">
+          <button class="btn-icon" onclick="localGoUp()" title="Go up">
+            <i class="fas fa-level-up-alt"></i>
+          </button>
+          <input type="text" id="local-path" class="path-input" onkeydown="if(event.key==='Enter')navigateLocal(this.value)">
+          <button class="btn-icon" onclick="navigateLocal(document.getElementById('local-path').value)" title="Go">
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+      <div class="panel-toolbar">
+        <button class="btn-sm" onclick="localCreateDir()" title="Create Directory">
+          <i class="fas fa-folder-plus"></i>
+        </button>
+        <button class="btn-sm" onclick="localRefresh()" title="Refresh">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+        <button class="btn-sm" onclick="localDelete()" title="Delete">
+          <i class="fas fa-trash"></i>
+        </button>
+        <button class="btn-sm" onclick="localRename()" title="Rename">
+          <i class="fas fa-edit"></i>
+        </button>
+        <button class="btn-sm" onclick="uploadSelected()" title="Upload to Remote">
+          <i class="fas fa-upload"></i> Upload
+        </button>
+      </div>
+      <div class="file-list-header">
+        <div class="col-icon"></div>
+        <div class="col-name" onclick="sortLocal('name')">Filename <i class="fas fa-sort"></i></div>
+        <div class="col-size" onclick="sortLocal('size')">Size <i class="fas fa-sort"></i></div>
+        <div class="col-type">Type</div>
+        <div class="col-date" onclick="sortLocal('date')">Last Modified <i class="fas fa-sort"></i></div>
+        <div class="col-perm">Permissions</div>
+      </div>
+      <div class="file-list" id="local-file-list" ondragover="handleDragOver(event)" ondrop="handleDropLocal(event)">
+        <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+      </div>
+      <div class="panel-status" id="local-status">0 files, 0 directories</div>
+    </div>
+
+    <!-- Splitter -->
+    <div class="splitter" id="splitter"></div>
+
+    <!-- Remote Panel -->
+    <div class="panel remote-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <i class="fas fa-server"></i> Remote Site
+        </div>
+        <div class="panel-path">
+          <button class="btn-icon" onclick="remoteGoUp()" title="Go up">
+            <i class="fas fa-level-up-alt"></i>
+          </button>
+          <input type="text" id="remote-path" class="path-input" onkeydown="if(event.key==='Enter')navigateRemote(this.value)" disabled>
+          <button class="btn-icon" onclick="navigateRemote(document.getElementById('remote-path').value)" title="Go">
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+      <div class="panel-toolbar">
+        <button class="btn-sm" onclick="remoteCreateDir()" title="Create Directory" disabled id="btn-remote-mkdir">
+          <i class="fas fa-folder-plus"></i>
+        </button>
+        <button class="btn-sm" onclick="remoteRefresh()" title="Refresh" disabled id="btn-remote-refresh">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+        <button class="btn-sm" onclick="remoteDelete()" title="Delete" disabled id="btn-remote-delete">
+          <i class="fas fa-trash"></i>
+        </button>
+        <button class="btn-sm" onclick="remoteRename()" title="Rename" disabled id="btn-remote-rename">
+          <i class="fas fa-edit"></i>
+        </button>
+        <button class="btn-sm" onclick="remoteChmod()" title="Change Permissions" disabled id="btn-remote-chmod">
+          <i class="fas fa-lock"></i> Chmod
+        </button>
+        <button class="btn-sm" onclick="downloadSelected()" title="Download to Local" disabled id="btn-remote-download">
+          <i class="fas fa-download"></i> Download
+        </button>
+      </div>
+      <div class="file-list-header">
+        <div class="col-icon"></div>
+        <div class="col-name" onclick="sortRemote('name')">Filename <i class="fas fa-sort"></i></div>
+        <div class="col-size" onclick="sortRemote('size')">Size <i class="fas fa-sort"></i></div>
+        <div class="col-type">Type</div>
+        <div class="col-date" onclick="sortRemote('date')">Last Modified <i class="fas fa-sort"></i></div>
+        <div class="col-perm">Permissions</div>
+      </div>
+      <div class="file-list" id="remote-file-list" ondragover="handleDragOver(event)" ondrop="handleDropRemote(event)">
+        <div class="empty-state">
+          <i class="fas fa-plug"></i>
+          <p>Not connected to any server</p>
+          <p class="hint">Use Quick Connect or Site Manager to connect</p>
+        </div>
+      </div>
+      <div class="panel-status" id="remote-status">Not connected</div>
+    </div>
+  </div>
+
+  <!-- Transfer Queue -->
+  <div class="transfer-queue" id="transfer-queue">
+    <div class="queue-header">
+      <span><i class="fas fa-tasks"></i> Transfer Queue</span>
+      <div class="queue-actions">
+        <button class="btn-sm" onclick="clearCompletedTransfers()" title="Clear completed">
+          <i class="fas fa-broom"></i> Clear
+        </button>
+        <button class="btn-sm" onclick="toggleTransferQueue()" title="Toggle">
+          <i class="fas fa-chevron-down"></i>
+        </button>
+      </div>
+    </div>
+    <div class="queue-tabs">
+      <div class="queue-tab active" data-tab="all">All</div>
+      <div class="queue-tab" data-tab="active">Active</div>
+      <div class="queue-tab" data-tab="completed">Completed</div>
+      <div class="queue-tab" data-tab="failed">Failed</div>
+    </div>
+    <div class="queue-list" id="queue-list">
+      <div class="queue-empty">No transfers in queue</div>
+    </div>
+  </div>
+
+  <!-- Site Manager Modal -->
+  <div class="modal-overlay" id="site-manager-modal" style="display:none;">
+    <div class="modal site-manager">
+      <div class="modal-header">
+        <h2><i class="fas fa-server"></i> Site Manager</h2>
+        <button class="btn-close" onclick="closeSiteManager()">&times;</button>
+      </div>
+      <div class="modal-body site-manager-body">
+        <div class="site-list-panel">
+          <div class="site-list-header">
+            <span>Saved Sites</span>
+            <button class="btn-sm" onclick="addNewSite()"><i class="fas fa-plus"></i> New</button>
+          </div>
+          <div class="site-list" id="site-list">
+            <div class="site-empty">No saved sites</div>
+          </div>
+        </div>
+        <div class="site-details-panel">
+          <div id="site-details-form" style="display:none;">
+            <div class="form-group">
+              <label>Site Name:</label>
+              <input type="text" id="site-name" placeholder="My Server">
+            </div>
+            <div class="form-group">
+              <label>Protocol:</label>
+              <select id="site-protocol">
+                <option value="ftp">FTP - File Transfer Protocol</option>
+                <option value="ftps">FTPS - FTP over TLS</option>
+                <option value="sftp">SFTP - SSH File Transfer Protocol</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Host:</label>
+              <input type="text" id="site-host" placeholder="ftp.example.com">
+            </div>
+            <div class="form-group">
+              <label>Port:</label>
+              <input type="number" id="site-port" placeholder="21">
+            </div>
+            <div class="form-group">
+              <label>Username:</label>
+              <input type="text" id="site-username" placeholder="username">
+            </div>
+            <div class="form-group">
+              <label>Password:</label>
+              <input type="password" id="site-password" placeholder="password">
+            </div>
+            <div class="form-group">
+              <label>Default Remote Directory:</label>
+              <input type="text" id="site-remote-dir" placeholder="/">
+            </div>
+            <div class="form-actions">
+              <button class="btn-primary" onclick="saveSite()"><i class="fas fa-save"></i> Save</button>
+              <button class="btn-primary" onclick="connectToSite()"><i class="fas fa-plug"></i> Connect</button>
+              <button class="btn-danger" onclick="deleteSite()"><i class="fas fa-trash"></i> Delete</button>
+            </div>
+          </div>
+          <div id="site-details-empty">
+            <p>Select a site or create a new one</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Properties Modal -->
+  <div class="modal-overlay" id="properties-modal" style="display:none;">
+    <div class="modal properties-modal">
+      <div class="modal-header">
+        <h2><i class="fas fa-info-circle"></i> Properties</h2>
+        <button class="btn-close" onclick="closeProperties()">&times;</button>
+      </div>
+      <div class="modal-body" id="properties-body">
+      </div>
+    </div>
+  </div>
+
+  <!-- Chmod Modal -->
+  <div class="modal-overlay" id="chmod-modal" style="display:none;">
+    <div class="modal chmod-modal">
+      <div class="modal-header">
+        <h2><i class="fas fa-lock"></i> Change Permissions</h2>
+        <button class="btn-close" onclick="closeChmod()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>File: <span id="chmod-filename"></span></label>
+        </div>
+        <div class="chmod-grid">
+          <div class="chmod-section">
+            <h4>Owner</h4>
+            <label><input type="checkbox" id="chmod-owner-r" onchange="updateChmodValue()"> Read</label>
+            <label><input type="checkbox" id="chmod-owner-w" onchange="updateChmodValue()"> Write</label>
+            <label><input type="checkbox" id="chmod-owner-x" onchange="updateChmodValue()"> Execute</label>
+          </div>
+          <div class="chmod-section">
+            <h4>Group</h4>
+            <label><input type="checkbox" id="chmod-group-r" onchange="updateChmodValue()"> Read</label>
+            <label><input type="checkbox" id="chmod-group-w" onchange="updateChmodValue()"> Write</label>
+            <label><input type="checkbox" id="chmod-group-x" onchange="updateChmodValue()"> Execute</label>
+          </div>
+          <div class="chmod-section">
+            <h4>Other</h4>
+            <label><input type="checkbox" id="chmod-other-r" onchange="updateChmodValue()"> Read</label>
+            <label><input type="checkbox" id="chmod-other-w" onchange="updateChmodValue()"> Write</label>
+            <label><input type="checkbox" id="chmod-other-x" onchange="updateChmodValue()"> Execute</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Numeric Value:</label>
+          <input type="text" id="chmod-value" maxlength="3" onchange="updateChmodCheckboxes()">
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" onclick="applyChmod()"><i class="fas fa-check"></i> Apply</button>
+          <button class="btn-secondary" onclick="closeChmod()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context Menu -->
+  <div class="context-menu" id="context-menu" style="display:none;">
+    <div class="context-menu-items" id="context-menu-items"></div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="settings-modal" style="display:none;">
+    <div class="modal settings-modal-advanced">
+      <div class="modal-header">
+        <h2><i class="fas fa-cog"></i> Settings</h2>
+        <button class="btn-close" onclick="closeSettings()">&times;</button>
+      </div>
+      <div class="modal-body settings-body">
+        <!-- Settings Tabs -->
+        <div class="settings-tabs">
+          <div class="settings-tab active" data-tab="general" onclick="switchSettingsTab('general')">
+            <i class="fas fa-sliders-h"></i> General
+          </div>
+          <div class="settings-tab" data-tab="connection" onclick="switchSettingsTab('connection')">
+            <i class="fas fa-network-wired"></i> Connection
+          </div>
+          <div class="settings-tab" data-tab="transfer" onclick="switchSettingsTab('transfer')">
+            <i class="fas fa-exchange-alt"></i> Transfers
+          </div>
+          <div class="settings-tab" data-tab="security" onclick="switchSettingsTab('security')">
+            <i class="fas fa-shield-alt"></i> Security
+          </div>
+          <div class="settings-tab" data-tab="interface" onclick="switchSettingsTab('interface')">
+            <i class="fas fa-desktop"></i> Interface
+          </div>
+          <div class="settings-tab" data-tab="advanced" onclick="switchSettingsTab('advanced')">
+            <i class="fas fa-code"></i> Advanced
+          </div>
+        </div>
+
+        <!-- General Settings -->
+        <div class="settings-panel active" id="settings-general">
+          <h3><i class="fas fa-sliders-h"></i> General Settings</h3>
+          <div class="form-group">
+            <label>Theme:</label>
+            <select id="setting-theme" onchange="applyTheme(this.value)">
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+              <option value="blue">Blue</option>
+              <option value="high-contrast">High Contrast</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Language:</label>
+            <select id="setting-language" onchange="saveSettings()">
+              <option value="en">English</option>
+              <option value="es">Español</option>
+              <option value="fr">Français</option>
+              <option value="de">Deutsch</option>
+              <option value="zh">中文</option>
+            </select>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-show-hidden" onchange="saveSettings()"> Show hidden files</label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-confirm-delete" checked onchange="saveSettings()"> Confirm before delete</label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-confirm-overwrite" checked onchange="saveSettings()"> Confirm before overwrite</label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-minimize-to-tray" onchange="saveSettings()"> Minimize to system tray</label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-start-minimized" onchange="saveSettings()"> Start minimized</label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-auto-update" checked onchange="saveSettings()"> Check for updates automatically</label>
+          </div>
+        </div>
+
+        <!-- Connection Settings -->
+        <div class="settings-panel" id="settings-connection">
+          <h3><i class="fas fa-network-wired"></i> Connection Settings</h3>
+          <div class="form-group">
+            <label>Connection timeout (seconds):</label>
+            <input type="number" id="setting-conn-timeout" min="5" max="300" value="30" onchange="saveSettings()">
+          </div>
+          <div class="form-group">
+            <label>Keep-alive interval (seconds):</label>
+            <input type="number" id="setting-keepalive-interval" min="0" max="3600" value="60" onchange="saveSettings()">
+          </div>
+          <div class="form-group">
+            <label>Retry attempts:</label>
+            <input type="number" id="setting-retry-attempts" min="0" max="10" value="3" onchange="saveSettings()">
+          </div>
+          <div class="form-group">
+            <label>Retry delay (seconds):</label>
+            <input type="number" id="setting-retry-delay" min="1" max="60" value="5" onchange="saveSettings()">
+          </div>
+          <div class="form-group">
+            <label>FTP transfer mode:</label>
+            <select id="setting-ftp-mode" onchange="saveSettings()">
+              <option value="passive">Passive (recommended)</option>
+              <option value="active">Active</option>
+            </select>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-auto-reconnect" checked onchange="saveSettings()"> Auto-reconnect on connection loss</label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-compression" checked onchange="saveSettings()"> Enable compression (MODE Z)</label>
+          </div>
+          <div class="form-group">
+            <label>Default encoding:</label>
+            <select id="setting-encoding" onchange="saveSettings()">
+              <option value="utf8">UTF-8</option>
+              <option value="latin1">ISO-8859-1 (Latin-1)</option>
+              <option value="windows-1252">Windows-1252</option>
+              <option value="ascii">ASCII</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Transfer Settings -->
+        <div class="settings-panel" id="settings-transfer">
+          <h3><i class="fas fa-exchange-alt"></i> Transfer Settings</h3>
+          <div class="form-group">
+            <label>Transfer mode:</label>
+            <select id="setting-transfer-mode" onchange="saveSettings()">
+              <option value="auto">Auto-detect</option>
+              <option value="binary">Binary (recommended)</option>
+              <option value="ascii">ASCII/Text</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Max concurrent transfers:</label>
+            <input type="number" id="setting-max-concurrent" min="1" max="10" value="3" onchange="saveSettings()">
+          </div>
+          <div class="form-group">
+            <label>Max transfers per server:</label>
+            <input type="number" id="setting-max-per-server" min="1" max="5" value="2" onchange="saveSettings()">
+          </div>
+          <div class="form-group">
+            <label>Download speed limit (KB/s):</label>
+            <input type="number" id="setting-download-limit" min="0" max="100000" value="0" placeholder="0 = unlimited" onchange="saveSettings()">
+          </div>
+          <div class="form-group">
+            <label>Upload speed limit (KB/s):</label>
+            <input type="number" id="setting-upload-limit" min="0" max="100000" value="0" placeholder="0 = unlimited" onchange="saveSettings()">
+          </div>
+          <div class="form-group">
+            <label>Default local directory:</label>
+            <input type="text" id="setting-default-local" placeholder="Leave empty for home directory" onchange="saveSettings()">
+          </div>
+          <div class="form-group">
+            <label>On file conflict:</label>
+            <select id="setting-conflict-action" onchange="saveSettings()">
+              <option value="ask">Ask for action</option>
+              <option value="overwrite">Overwrite</option>
+              <option value="skip">Skip</option>
+              <option value="rename">Rename</option>
+              <option value="resume">Resume if possible</option>
+            </select>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-preserve-timestamp" checked onchange="saveSettings()"> Preserve file timestamps</label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-verify-transfer" onchange="saveSettings()"> Verify transfers (checksum)</label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-use-temp-files" checked onchange="saveSettings()"> Use temporary files for uploading</label>
+          </div>
+        </div>
+
+        <!-- Security Settings -->
+        <div class="settings-panel" id="settings-security">
+          <h3><i class="fas fa-shield-alt"></i> Security Settings</h3>
+          <div class="form-group">
+            <label>TLS/SSL version:</label>
+            <select id="setting-tls-version" onchange="saveSettings()">
+              <option value="auto">Auto (recommended)</option>
+              <option value="1.3">TLS 1.3 only</option>
+              <option value="1.2">TLS 1.2 or higher</option>
+            </select>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-verify-cert" checked onchange="saveSettings()"> Verify server certificates</label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-verify-host" checked onchange="saveSettings()"> Match hostname against certificate</label>
+          </div>
+          <div class="form-group">
+            <label>SFTP key exchange algorithm:</label>
+            <select id="setting-kex-algo" onchange="saveSettings()">
+              <option value="auto">Auto-negotiate</option>
+              <option value="curve25519">curve25519-sha256</option>
+              <option value="ecdh">ecdh-sha2-nistp256</option>
+              <option value="diffie-hellman">diffie-hellman-group-exchange-sha256</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Cipher preference:</label>
+            <select id="setting-cipher" onchange="saveSettings()">
+              <option value="auto">Auto-negotiate</option>
+              <option value="aes256">aes256-gcm@openssh.com</option>
+              <option value="aes128">aes128-gcm@openssh.com</option>
+              <option value="chacha20">chacha20-poly1305@openssh.com</option>
+            </select>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-clear-sessions" onchange="saveSettings()"> Clear session data on exit</label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-encrypt-sites" onchange="saveSettings()"> Encrypt saved site passwords</label>
+          </div>
+        </div>
+
+        <!-- Interface Settings -->
+        <div class="settings-panel" id="settings-interface">
+          <h3><i class="fas fa-desktop"></i> Interface Settings</h3>
+          <div class="form-group">
+            <label>File list view:</label>
+            <select id="setting-list-view" onchange="saveSettings()">
+              <option value="detailed">Detailed (columns)</option>
+              <option value="icons">Icons</option>
+              <option value="compact">Compact list</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Double-click action:</label>
+            <select id="setting-dblclick-action" onchange="saveSettings()">
+              <option value="open">Open/Navigate</option>
+              <option value="transfer">Transfer file</option>
+              <option value="properties">Show properties</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date format:</label>
+            <select id="setting-date-format" onchange="saveSettings()">
+              <option value="locale">System locale</option>
+              <option value="iso">ISO 8601</option>
+              <option value="us">US (MM/DD/YYYY)</option>
+              <option value="eu">European (DD/MM/YYYY)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>File size format:</label>
+            <select id="setting-size-format" onchange="saveSettings()">
+              <option value="binary">Binary (KiB, MiB)</option>
+              <option value="decimal">Decimal (KB, MB)</option>
+              <option value="bytes">Bytes only</option>
+            </select>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-show-tree" onchange="saveSettings()"> Show directory tree panel</label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-animations" checked onchange="saveSettings()"> Enable animations</label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-sound-effects" onchange="saveSettings()"> Enable sound effects</label>
+          </div>
+          <div class="form-group">
+            <label>Log verbosity:</label>
+            <select id="setting-log-level" onchange="saveSettings()">
+              <option value="error">Errors only</option>
+              <option value="warning">Warnings and errors</option>
+              <option value="info">Normal (recommended)</option>
+              <option value="debug">Debug (verbose)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Advanced Settings -->
+        <div class="settings-panel" id="settings-advanced">
+          <h3><i class="fas fa-code"></i> Advanced Settings</h3>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-enable-sync" onchange="saveSettings()"> Enable directory synchronization</label>
+          </div>
+          <div class="form-group">
+            <label>Sync comparison method:</label>
+            <select id="setting-sync-method" onchange="saveSettings()">
+              <option value="size">File size</option>
+              <option value="time">Modification time</option>
+              <option value="checksum">Checksum (slower)</option>
+              <option value="size-time">Size and time</option>
+            </select>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-follow-symlinks" onchange="saveSettings()"> Follow symbolic links</label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-show-dotfiles" checked onchange="saveSettings()"> Show dotfiles (Unix hidden)</label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-case-sensitive" onchange="saveSettings()"> Case-sensitive file comparison</label>
+          </div>
+          <div class="form-group">
+            <label>Buffer size (KB):</label>
+            <input type="number" id="setting-buffer-size" min="4" max="1024" value="64" onchange="saveSettings()">
+          </div>
+          <div class="form-group">
+            <label>Socket buffer size (KB):</label>
+            <input type="number" id="setting-socket-buffer" min="4" max="4096" value="256" onchange="saveSettings()">
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-parallel-connections" checked onchange="saveSettings()"> Use parallel connections for transfers</label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-ipv6" onchange="saveSettings()"> Prefer IPv6 connections</label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="setting-proxy-support" onchange="saveSettings()"> Enable proxy support</label>
+          </div>
+          <div class="form-group">
+            <label>Proxy type:</label>
+            <select id="setting-proxy-type" onchange="saveSettings()">
+              <option value="none">None</option>
+              <option value="http">HTTP Proxy</option>
+              <option value="socks4">SOCKS4</option>
+              <option value="socks5">SOCKS5</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Proxy host:</label>
+            <input type="text" id="setting-proxy-host" placeholder="proxy.example.com" onchange="saveSettings()">
+          </div>
+          <div class="form-group">
+            <label>Proxy port:</label>
+            <input type="number" id="setting-proxy-port" min="1" max="65535" value="8080" onchange="saveSettings()">
+          </div>
+          <div class="settings-actions">
+            <button class="btn-secondary" onclick="exportSettings()">
+              <i class="fas fa-download"></i> Export Settings
+            </button>
+            <button class="btn-secondary" onclick="importSettings()">
+              <i class="fas fa-upload"></i> Import Settings
+            </button>
+            <button class="btn-danger" onclick="resetSettings()">
+              <i class="fas fa-undo"></i> Reset to Defaults
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
