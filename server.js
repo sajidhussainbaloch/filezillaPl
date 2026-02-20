@@ -5,7 +5,7 @@ const ftp = require('basic-ftp');
 const SftpClient = require('ssh2-sftp-client');
 const multer = require('multer');
 const WebSocket = require('ws');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 const os = require('os');
 
 const app = express();
@@ -163,7 +163,7 @@ app.get('/api/local/info', (req, res) => {
 
 app.post('/api/connect', async (req, res) => {
   const { host, port, username, password, protocol, privateKey } = req.body;
-  const connId = uuidv4();
+  const connId = randomUUID();
 
   try {
     if (protocol === 'sftp') {
@@ -353,7 +353,7 @@ app.post('/api/transfer/upload', upload.single('file'), async (req, res) => {
   const { connId, remotePath } = req.body;
   if (!connections[connId]) return res.status(400).json({ error: 'Not connected' });
 
-  const transferId = uuidv4();
+  const transferId = randomUUID();
 
   try {
     const conn = connections[connId];
@@ -392,7 +392,7 @@ app.post('/api/transfer/upload-local', async (req, res) => {
   const { connId, localPath, remotePath } = req.body;
   if (!connections[connId]) return res.status(400).json({ error: 'Not connected' });
 
-  const transferId = uuidv4();
+  const transferId = randomUUID();
   const fileName = path.basename(localPath);
 
   try {
@@ -434,7 +434,7 @@ app.post('/api/transfer/download', async (req, res) => {
   const { connId, remotePath, localPath } = req.body;
   if (!connections[connId]) return res.status(400).json({ error: 'Not connected' });
 
-  const transferId = uuidv4();
+  const transferId = randomUUID();
   const fileName = path.basename(remotePath);
 
   try {
@@ -471,7 +471,7 @@ app.post('/api/transfer/download-dir', async (req, res) => {
   const { connId, remotePath, localPath } = req.body;
   if (!connections[connId]) return res.status(400).json({ error: 'Not connected' });
 
-  const transferId = uuidv4();
+  const transferId = randomUUID();
   const dirName = path.basename(remotePath);
 
   try {
@@ -522,7 +522,7 @@ app.get('/api/sites', (req, res) => {
 
 app.post('/api/sites', (req, res) => {
   const sites = loadSites();
-  const site = { id: uuidv4(), ...req.body };
+  const site = { id: randomUUID(), ...req.body };
   sites.push(site);
   saveSites(sites);
   res.json(site);
