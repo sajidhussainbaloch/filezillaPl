@@ -1,4 +1,4 @@
-# filezillaPl
+# filezillaPlus
 
 A web-based FTP/FTPS/SFTP file manager inspired by desktop file transfer clients. It provides dual-pane browsing (local + remote), quick connection, site management, and transfer queue tracking in a browser UI.
 
